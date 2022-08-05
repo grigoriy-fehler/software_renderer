@@ -1,11 +1,11 @@
 CC = gcc
-COMPILER_FLAGS = -std=c99 -Wall -Wextra -fno-builtin -O3
-LINKER_FLAGS = -lxcb -lxcb-image
+COMPILER_FLAGS = -std=c99 -Wall -Wextra -O3
+LINKER_FLAGS = `sdl2-config --cflags --libs`
 
-all: demo_linux
+all: demo
 
-demo_linux: src/demo_linux.c
+demo: src/demo.c
 	$(CC) $(COMPILER_FLAGS) -o build/$@ $^ $(LINKER_FLAGS)
 
-run: demo_linux
-	./build/demo_linux
+run: demo
+	./build/demo

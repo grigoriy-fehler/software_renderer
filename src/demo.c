@@ -1,5 +1,4 @@
-#include <xcb/xcb.h>
-#include <xcb/xcb_image.h>
+#include <SDL.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,19 +15,6 @@
 #define WINDOW_WIDTH 960
 #define WINDOW_HEIGHT 540
 
-#define KEYCODE_ESCAPE 9
-#define KEYCODE_Q 24
-#define KEYCODE_W 25
-#define KEYCODE_E 26
-#define KEYCODE_A 38
-#define KEYCODE_S 39
-#define KEYCODE_D 40
-
-#define KEYCODE_UP 111
-#define KEYCODE_DOWN 116
-#define KEYCODE_LEFT 113
-#define KEYCODE_RIGHT 114
-
 #define RENDER_ENTITY_COUNT 5
 #define TEXTURE_COUNT 5
 #define MATERIAL_COUNT TEXTURE_COUNT
@@ -36,17 +22,9 @@
 // S T R U C T   D E F I N I T I O N S /////////////////////////////////////////
 
 typedef struct platform_state_t {
-	xcb_connection_t* connection;
-	xcb_window_t window;
-	const xcb_setup_t* setup;
-	xcb_screen_t* screen;
-	xcb_generic_event_t* event;
-	xcb_client_message_event_t* cm_event;
-	xcb_atom_t wm_protocols;
-	xcb_atom_t wm_window_delete;
-	xcb_image_t* image;
-	xcb_pixmap_t pixmap;
-	xcb_gcontext_t gc;
+	SDL_Window* window;
+	SDL_Renderer* renderer;
+	SDL_Texture* texture;
 	int32_t width;
 	int32_t height;
 	int32_t quit;
@@ -54,27 +32,15 @@ typedef struct platform_state_t {
 
 // G L O B A L   V A R I A B L E S /////////////////////////////////////////////
 
-static color_rgba_t color_black = color_rgba(0.086274f, 0.086274f, 0.086274f, 1.0f);
-static color_rgba_t color_white = color_rgba(0.941176f, 0.941176f, 0.941176f, 1.0f);
-static color_rgba_t color_red = color_rgba(0.819607f, 0.309803f, 0.172549f, 1.0f);
+static color_rgba_t color_black = color_rgba(0.086f, 0.086f, 0.086f, 1.0f);
+static color_rgba_t color_white = color_rgba(0.941f, 0.941f, 0.941f, 1.0f);
+static color_rgba_t color_red = color_rgba(0.819f, 0.309f, 0.172f, 1.0f);
 
 static platform_state_t ps = { 0 };
 static renderer_t renderer = { 0 };
 static render_entity_t entities[RENDER_ENTITY_COUNT] = { 0 };
 static texture_t textures[TEXTURE_COUNT] = { 0 };
 static material_t materials[MATERIAL_COUNT] = { 0 };
-
-static int key_q = 0;
-static int key_w = 0;
-static int key_e = 0;
-static int key_a = 0;
-static int key_s = 0;
-static int key_d = 0;
-
-static int key_up = 0;
-static int key_down = 0;
-static int key_left = 0;
-static int key_right = 0;
 
 static const char* obj_paths[RENDER_ENTITY_COUNT] = {
 	"assets/fortress.obj",
@@ -381,237 +347,35 @@ static inline void render_entity_free(render_entity_t* entity) {
 // R E N D E R E R   F U N C T I O N S /////////////////////////////////////////
 
 static inline void renderer_software_on_resize(int32_t width, int32_t height) {
-	framebuffer_t* framebuffer = &renderer.framebuffer;
+	ps.width = width;
+	ps.height = height;
 
-	// NOTE: 'xcb_image_destroy' frees 'framebuffer->color'
-	xcb_image_destroy(ps.image);
-	xcb_free_gc(ps.connection, ps.gc);
-	xcb_free_pixmap(ps.connection, ps.pixmap);
-
-	free(framebuffer->depth);
+	framebuffer_t* fb = &renderer.framebuffer;
+	if (fb == NULL) return;
+	if (fb->color)
+		free(fb->color);
+	if (fb->depth)
+		free(fb->depth);
 
 	int32_t size = width * height;
-	framebuffer->width = width;
-	framebuffer->height = height;
-	framebuffer->color = malloc(sizeof *framebuffer->color * size);
-	framebuffer->depth = malloc(sizeof *framebuffer->depth * size);
+	fb->width = width;
+	fb->height = height;
+	fb->color = malloc(sizeof *fb->color * size);
+	fb->depth = malloc(sizeof *fb->depth * size);
 
-	uint32_t gc_mask = XCB_GC_FOREGROUND;
-	uint32_t gc_value[] = { ps.screen->white_pixel };
-	ps.gc = xcb_generate_id(ps.connection);
-	ps.pixmap = xcb_generate_id(ps.connection);
-
-	xcb_create_pixmap(ps.connection, ps.screen->root_depth, ps.pixmap,
-		ps.window, width, height);
-	xcb_create_gc(ps.connection, ps.gc, ps.pixmap, gc_mask, gc_value);
-
-	ps.image = xcb_image_create_native(ps.connection, width, height,
-		XCB_IMAGE_FORMAT_Z_PIXMAP, ps.screen->root_depth,
-		(void *) framebuffer->color, size * sizeof(uint32_t),
-		(uint8_t *) framebuffer->color);
-		
-	framebuffer_t* fb = &renderer.framebuffer;
 	matrix4x4_projection(&renderer.projection_matrix,
 		renderer.camera.z_near, renderer.camera.z_far,
 		renderer.camera.fov, fb->width, fb->height);
 } // renderer_software_on_resize
 
-static inline void renderer_software_init(int32_t width, int32_t height) {
-	framebuffer_t* framebuffer = &renderer.framebuffer;
-
-	int32_t size = width * height;
-	framebuffer->width = width;
-	framebuffer->height = height;
-	framebuffer->color = malloc(sizeof *framebuffer->color * size);
-	framebuffer->depth = malloc(sizeof *framebuffer->depth * size);
-
-	renderer.clear_color = color_red;
-
-	uint32_t gc_mask = XCB_GC_FOREGROUND;
-	uint32_t gc_value[] = { ps.screen->white_pixel };
-	ps.gc = xcb_generate_id(ps.connection);
-	ps.pixmap = xcb_generate_id(ps.connection);
-
-	xcb_create_pixmap(ps.connection, ps.screen->root_depth, ps.pixmap,
-		ps.window, width, height);
-	xcb_create_gc(ps.connection, ps.gc, ps.pixmap, gc_mask, gc_value);
-
-	ps.image = xcb_image_create_native(ps.connection, width, height,
-		XCB_IMAGE_FORMAT_Z_PIXMAP, ps.screen->root_depth,
-		(void *) framebuffer->color, size * sizeof(uint32_t),
-		(uint8_t *) framebuffer->color);
-} // renderer_software_init
-
-static inline void renderer_software_shut() {
-	framebuffer_t* framebuffer = &renderer.framebuffer;
-
-	// NOTE: 'xcb_image_destroy' frees 'framebuffer->color'
-	xcb_image_destroy(ps.image);
-	xcb_free_gc(ps.connection, ps.gc);
-	xcb_free_pixmap(ps.connection, ps.pixmap);
-
-	free(framebuffer->depth);
-} // renderer_software_shut
-
-// X C B   W I N D O W   F U N C T I O N S /////////////////////////////////////
-
-static inline void window_set_keyrepeat(xcb_auto_repeat_mode_t mode) {
-	uint32_t keyrepeat_mask = XCB_KB_AUTO_REPEAT_MODE;
-	uint32_t keyrepeat_value[] = { mode };
-	xcb_void_cookie_t keyboard_control_cookie = 
-		xcb_change_keyboard_control_checked(ps.connection,
-		keyrepeat_mask, keyrepeat_value);
-	xcb_generic_error_t* error = xcb_request_check(ps.connection,
-		keyboard_control_cookie);
-	if (error)
-		fprintf(stderr, "Error in XCB Change Keyboard Auto Repeate!\n");
-} // window_set_keyrepeat
-
-static inline void window_handle_key(int32_t keycode, int32_t pressed) {
-	switch (keycode) {
-		case KEYCODE_Q:
-			key_q = pressed;
-			break;
-		case KEYCODE_W:
-			key_w = pressed;
-			break;
-		case KEYCODE_E:
-			key_e = pressed;
-			break;
-		case KEYCODE_A:
-			key_a = pressed;
-			break;
-		case KEYCODE_S:
-			key_s = pressed;
-			break;
-		case KEYCODE_D:
-			key_d = pressed;
-			break;
-		case KEYCODE_UP:
-			key_up = pressed;
-			break;
-		case KEYCODE_DOWN:
-			key_down = pressed;
-			break;
-		case KEYCODE_LEFT:
-			key_left = pressed;
-			break;
-		case KEYCODE_RIGHT:
-			key_right = pressed;
-			break;
-		case KEYCODE_ESCAPE:
-			ps.quit = 1;
-			break;
-		default: break;
-	}
-} // window_handle_key
-
-static inline void window_init() {
-	int32_t error = 0;
-	int32_t num_screens = 0;
-	ps.connection = xcb_connect(NULL, &num_screens);
-	if ((error = xcb_connection_has_error(ps.connection))) {
-		fprintf(stderr, "XCB Connection Error: %d\n", error);
-		xcb_disconnect(ps.connection);
-		quit();
-	}
-
-	ps.setup = xcb_get_setup(ps.connection);
-	xcb_screen_iterator_t iterator = xcb_setup_roots_iterator(ps.setup);
-	for (int32_t i = 0; i < num_screens; i++)
-		xcb_screen_next(&iterator);
-	ps.screen = iterator.data;
-
-	uint32_t event_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-	uint32_t value_list[] = {
-		ps.screen->black_pixel,
-		XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE |
-		XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
-		XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_POINTER_MOTION |
-		XCB_EVENT_MASK_STRUCTURE_NOTIFY
-	};
-	ps.window = xcb_generate_id(ps.connection);
-
-	xcb_create_window(ps.connection, XCB_COPY_FROM_PARENT, ps.window,
-		ps.screen->root, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0,
-		XCB_WINDOW_CLASS_INPUT_OUTPUT, ps.screen->root_visual,
-		event_mask, value_list);
-
-	xcb_change_property(ps.connection, XCB_PROP_MODE_REPLACE, ps.window,
-		XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8,
-		strlen(WINDOW_NAME), WINDOW_NAME);
-
-	renderer_software_init(WINDOW_WIDTH, WINDOW_HEIGHT);
-
-	xcb_intern_atom_cookie_t wm_cookie_delete = xcb_intern_atom(
-		ps.connection, 0, strlen("WM_DELETE_WINDOW"),
-		"WM_DELETE_WINDOW");
-	xcb_intern_atom_cookie_t wm_cookie_protocols = xcb_intern_atom(
-		ps.connection, 0, strlen("WM_PROTOCOLS"),
-		"WM_PROTOCOLS");
-	xcb_intern_atom_reply_t* wm_reply_delete = xcb_intern_atom_reply(
-		ps.connection, wm_cookie_delete, NULL);
-	xcb_intern_atom_reply_t* wm_reply_protocols = xcb_intern_atom_reply(
-		ps.connection, wm_cookie_protocols, NULL);
-	ps.wm_window_delete = wm_reply_delete->atom;
-	ps.wm_protocols = wm_reply_protocols->atom;
-
-	xcb_change_property(ps.connection, XCB_PROP_MODE_REPLACE, ps.window,
-		wm_reply_protocols->atom, 4, 32, 1, &wm_reply_delete->atom);
-
-	window_set_keyrepeat(XCB_AUTO_REPEAT_MODE_OFF);
-
-	xcb_map_window(ps.connection, ps.window);
-	xcb_flush(ps.connection);
-} // window_init
-
-static inline void window_handle_event() {
-	uint32_t pressed;
-	xcb_configure_notify_event_t* configure_event;
-	switch (ps.event->response_type & ~0x80) {
-		case XCB_KEY_PRESS:
-		case XCB_KEY_RELEASE:
-			pressed = (ps.event->response_type == XCB_KEY_PRESS);
-
-			xcb_key_press_event_t* kb_event =
-				(xcb_key_press_event_t *) ps.event;
-			xcb_keycode_t keycode = kb_event->detail;
-			window_handle_key(keycode, pressed);
-			break;
-		case XCB_BUTTON_PRESS:
-		case XCB_BUTTON_RELEASE:
-			break;
-		case XCB_MOTION_NOTIFY:
-			break;
-		case XCB_CONFIGURE_NOTIFY:
-			configure_event = (xcb_configure_notify_event_t *)
-				ps.event;
-			ps.width = configure_event->width;
-			ps.height = configure_event->height;
-			renderer_software_on_resize(ps.width, ps.height);
-			break;
-		case XCB_CLIENT_MESSAGE:
-			ps.cm_event = (xcb_client_message_event_t *) ps.event;
-			if (ps.cm_event->data.data32[0] == ps.wm_window_delete)
-				ps.quit = 1;
-			break;
-		default: break;
-	}
-} // window_handle_event
-
-static inline void window_shut() {
-	window_set_keyrepeat(XCB_AUTO_REPEAT_MODE_DEFAULT);
-
-	renderer_software_shut();
-
-	xcb_destroy_window(ps.connection, ps.window);
-	xcb_disconnect(ps.connection);
-} // window_shut
-
-// M A I N   F U N C T I O N ///////////////////////////////////////////////////
-
-static inline void init() {
+static inline void renderer_software_init() {
 	framebuffer_t* fb = &renderer.framebuffer;
+
+	int32_t size = ps.width * ps.height;
+	fb->width = ps.width;
+	fb->height = ps.height;
+	fb->color = malloc(sizeof *fb->color * size);
+	fb->depth = malloc(sizeof *fb->depth * size);
 
 	renderer.clear_color = color_red;
 	renderer.entity_count = RENDER_ENTITY_COUNT;
@@ -626,17 +390,18 @@ static inline void init() {
 		1.0f, 1.0f, 1.0f, 1.0f
 	);
 
-	renderer.camera.position = point4d(0.0f, 38.2f, -56.2f),
-	renderer.camera.direction = vector4d(25.0f, 0.0f, 0.0f),
+	renderer.camera.position = point4d(0.0f, 38.2f, -56.2f);
+	renderer.camera.direction = vector4d(25.0f, 0.0f, 0.0f);
 	renderer.camera.fov = 90.0f;
 	renderer.camera.z_near = 0.5f;
 	renderer.camera.z_far = 2000.0f;
-	
+
 	transform4d_t transform = transform4d(
 		point4d(0.0f, 0.0f, 0.0f),
 		vector4d(0.0f, 0.0f, 0.0f),
 		vector4d(1.0f, 1.0f, 1.0f)
 	);
+
 	for (int i = 0; i < RENDER_ENTITY_COUNT; i++) {
 		entities[i] = *render_entity_load_from_obj(obj_paths[i],
 			&transform, i, &color_white);
@@ -660,34 +425,111 @@ static inline void init() {
 	matrix4x4_projection(&renderer.projection_matrix,
 		renderer.camera.z_near, renderer.camera.z_far,
 		renderer.camera.fov, fb->width, fb->height);
-	
+
 	renderer.framebuffer.image_format = IMAGE_FORMAT_ARGB;
 
 	renderer_init(&renderer);
-} // init
+} // renderer_software_init
 
-static inline void loop(double dt) {
-	for (i32 i = 0; i < RENDER_ENTITY_COUNT; i++) {
+static inline void renderer_software_shut() {
+	framebuffer_t* fb = &renderer.framebuffer;
+	if (fb == NULL) return;
+	if (fb->color)
+		free(fb->color);
+	if (fb->depth)
+		free(fb->depth);
+} // renderer_software_shut
+
+static inline void renderer_software_loop(double dt) {
+	for (int32_t i = 0; i < RENDER_ENTITY_COUNT; i++) {
 		render_entity_t* entity = &renderer.entities[i];
 
-		f32 rot_speed = 32.0f;
-		i32 rot_x = key_right - key_left;
-		i32 rot_y = key_up - key_down;
-		entity->transform.rotation.y -= rot_x * rot_speed * dt;
-		entity->transform.rotation.x -= rot_y * rot_speed * dt;
-		entity->transform.rotation.x = clamp(
-			entity->transform.rotation.x,
-			-40.0f, 25.0f
-		);
+		float rot_speed = 1.0f;
+		entity->transform.rotation.y -= rot_speed * dt;
 	}
-} // loop
+	renderer_loop(&renderer);
+} // renderer_software_loop
+
+// W I N D O W   F U N C T I O N S /////////////////////////////////////////////
+
+static inline void window_on_resize(int32_t width, int32_t height) {
+	if (ps.texture)
+		SDL_DestroyTexture(ps.texture);
+
+	ps.texture = SDL_CreateTexture(ps.renderer, SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_STREAMING, width, height);
+} // window_on_resize
+
+static inline void window_init() {
+	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+		fprintf(stderr, "Could not Initialize SDL!\n");
+		quit();
+	}
+
+	ps.window = SDL_CreateWindow(WINDOW_NAME, SDL_WINDOWPOS_UNDEFINED,
+		SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT,
+		SDL_WINDOW_RESIZABLE);
+
+	SDL_GetWindowSize(ps.window, &ps.width, &ps.height);
+
+	ps.renderer = SDL_CreateRenderer(ps.window, -1, 0);
+	ps.texture = SDL_CreateTexture(ps.renderer, SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_STREAMING, ps.width, ps.height);
+} // window_init
+
+static inline void window_shut() {
+	if (ps.texture)
+		SDL_DestroyTexture(ps.texture);
+	if (ps.renderer)
+		SDL_DestroyRenderer(ps.renderer);
+	if (ps.window)
+		SDL_DestroyWindow(ps.window);
+} // window_shut
+
+static inline void window_update() {
+	SDL_RenderClear(ps.renderer);
+
+	framebuffer_t* fb = &renderer.framebuffer;
+	int32_t pitch = fb->width * sizeof *fb->color;
+	SDL_UpdateTexture(ps.texture, NULL, fb->color, pitch);
+	SDL_RenderCopy(ps.renderer, ps.texture, NULL, NULL);
+
+	SDL_RenderPresent(ps.renderer);
+} // window_update
+
+static inline void window_handle_window_event(SDL_Event* event) {
+	switch (event->window.event) {
+		case SDL_WINDOWEVENT_RESIZED:
+			window_on_resize(
+				event->window.data1,
+				event->window.data2
+			);
+			renderer_software_on_resize(
+				event->window.data1,
+				event->window.data2
+			);
+			break;
+		default: break;
+	}
+} // window_handle_window_event
+
+static inline void window_handle_event(SDL_Event* event) {
+	switch (event->type) {
+		case SDL_WINDOWEVENT:
+			window_handle_window_event(event);
+			break;
+		case SDL_QUIT:
+			ps.quit = 1;
+			break;
+		default: break;
+	}
+} // window_handle_event
+
+// M A I N   F U N C T I O N ///////////////////////////////////////////////////
 
 int main() {
 	window_init();
-	
-	init();
-
-	renderer_init(&renderer);
+	renderer_software_init();
 
 	double counter = 0.0f;
 	clock_t time_previous = clock();
@@ -702,25 +544,23 @@ int main() {
 			counter -= 1.0f;
 		}
 
-		while ((ps.event = xcb_poll_for_event(ps.connection)))
-			window_handle_event();
+		SDL_Event event;
+		while (SDL_PollEvent(&event))
+			window_handle_event(&event);
 
-		loop(dt);
-		renderer_loop(&renderer);
+		renderer_software_loop(dt);
 
-		xcb_image_put(ps.connection, ps.pixmap, ps.gc, ps.image, 0, 0, 0);
-		xcb_copy_area(ps.connection, ps.pixmap, ps.window, ps.gc,
-			0, 0, 0, 0, ps.width, ps.height);
+		window_update();
 
 		time_previous = time_current;
 	}
 
+	renderer_software_shut();
 	window_shut();
 
 	return 0;
 } // main
 
 static inline void quit() {
-	window_set_keyrepeat(XCB_AUTO_REPEAT_MODE_DEFAULT);
 	exit(1);
 } // quit

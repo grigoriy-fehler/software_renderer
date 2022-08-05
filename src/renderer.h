@@ -475,24 +475,24 @@ static inline void camera_create_euler_matrix(matrix4x4_t* m, camera_t* c) {
 	mt.e31 = -c->position.y;
 	mt.e32 = -c->position.z;
 
-	f32 cos_x = cos(x);
-	f32 sin_x = -sin(x);
+	f32 cos_x = gf_cos(x);
+	f32 sin_x = -gf_sin(x);
 	matrix4x4_t mrx = matrix4x4_identity;
 	mrx.e11 = cos_x;
 	mrx.e12 = sin_x;
 	mrx.e21 = -sin_x;
 	mrx.e22 = cos_x;
 
-	f32 cos_y = cos(y);
-	f32 sin_y = -sin(y);
+	f32 cos_y = gf_cos(y);
+	f32 sin_y = -gf_sin(y);
 	matrix4x4_t mry = matrix4x4_identity;
 	mry.e00 = cos_y;
 	mry.e02 = -sin_y;
 	mry.e20 = sin_y;
 	mry.e22 = cos_y;
 
-	f32 cos_z = cos(z);
-	f32 sin_z = -sin(z);
+	f32 cos_z = gf_cos(z);
+	f32 sin_z = -gf_sin(z);
 	matrix4x4_t mrz = matrix4x4_identity;
 	mrz.e00 = cos_z;
 	mrz.e01 = sin_z;

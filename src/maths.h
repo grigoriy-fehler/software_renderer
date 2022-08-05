@@ -168,19 +168,19 @@ static inline f32 absolute(f32 n) {
 	return (n < 0) ? -n : n;
 } // absolute
 
-static inline i32 floor(f32 n) {
+static inline i32 gf_floor(f32 n) {
 	return (i32) n;
-} // floor
+} // gf_floor
 
-static inline i32 round(f32 n) {
+static inline i32 gf_round(f32 n) {
 	return (i32) (n + 0.5f);
-} // round
+} // gf_round
 
-static inline i32 ceil(f32 n) {
+static inline i32 gf_ceil(f32 n) {
 	return (i32) (n + 1.0f);
-} // ceil
+} // gf_ceil
 
-static inline f32 mod(f32 x, f32 y) {
+static inline f32 gf_mod(f32 x, f32 y) {
 	if (y == 0.0f) return x;
 
 	f32 m = x - y * floor(x / y);
@@ -202,9 +202,9 @@ static inline f32 mod(f32 x, f32 y) {
 	}
 
 	return m;
-} // mod
+} // gf_mod
 
-static inline f32 sqrt(f32 n) {
+static inline f32 gf_sqrt(f32 n) {
 	if (n < 0) return n;
 	i32 i = 0;
 	f32 a = 1.0f;
@@ -216,10 +216,10 @@ static inline f32 sqrt(f32 n) {
 		i++;
 	}
 	return a;
-} // sqrt
+} // gf_sqrt
 
-static inline f32 sin(f32 theta) {
-	theta = mod(theta, 360.0f);
+static inline f32 gf_sin(f32 theta) {
+	theta = gf_mod(theta, 360.0f);
 
 	i32 theta_int = (i32) theta;
 	f32 theta_frac = theta - theta_int;
@@ -227,10 +227,10 @@ static inline f32 sin(f32 theta) {
 	return (sin_lookup_table[theta_int]  + theta_frac * (
 		sin_lookup_table[theta_int + 1] - sin_lookup_table[theta_int]
 	));
-} // sin
+} // gf_sin
 
-static inline f32 cos(f32 theta) {
-	theta = mod(theta, 360.0f);
+static inline f32 gf_cos(f32 theta) {
+	theta = gf_mod(theta, 360.0f);
 
 	i32 theta_int = (i32) theta;
 	f32 theta_frac = theta - theta_int;
@@ -238,10 +238,10 @@ static inline f32 cos(f32 theta) {
 	return (cos_lookup_table[theta_int]  + theta_frac * (
 		cos_lookup_table[theta_int + 1] - cos_lookup_table[theta_int]
 	));
-} // cos
+} // gf_cos
 
-static inline f32 tan(f32 theta) {
-	theta = mod(theta, 360.0f);
+static inline f32 gf_tan(f32 theta) {
+	theta = gf_mod(theta, 360.0f);
 
 	i32 theta_int = (i32) theta;
 	f32 theta_frac = theta - theta_int;
@@ -249,7 +249,7 @@ static inline f32 tan(f32 theta) {
 	return (tan_lookup_table[theta_int]  + theta_frac * (
 		tan_lookup_table[theta_int + 1] - tan_lookup_table[theta_int]
 	));
-} // tan
+} // gf_tan
 
 static inline f32 clamp(f32 value, f32 min, f32 max)
 {
@@ -651,8 +651,8 @@ static inline void matrix4x4_scale(matrix4x4_t* m, f32 x, f32 y, f32 z) {
 
 // Note: Expects identity matrix for m
 static inline void matrix4x4_rotation_x(matrix4x4_t* m, f32 angle) {
-	f32 sin_theta = sin(angle);
-	f32 cos_theta = cos(angle);
+	f32 sin_theta = gf_sin(angle);
+	f32 cos_theta = gf_cos(angle);
 	m->e11 = cos_theta;
 	m->e12 = sin_theta;
 	m->e21 = -sin_theta;
@@ -661,8 +661,8 @@ static inline void matrix4x4_rotation_x(matrix4x4_t* m, f32 angle) {
 
 // Note: Expects identity matrix for m
 static inline void matrix4x4_rotation_y(matrix4x4_t* m, f32 angle) {
-	f32 sin_theta = sin(angle);
-	f32 cos_theta = cos(angle);
+	f32 sin_theta = gf_sin(angle);
+	f32 cos_theta = gf_cos(angle);
 	m->e00 = cos_theta;
 	m->e02 = -sin_theta;
 	m->e20 = sin_theta;
@@ -671,8 +671,8 @@ static inline void matrix4x4_rotation_y(matrix4x4_t* m, f32 angle) {
 
 // Note: Expects identity matrix for m
 static inline void matrix4x4_rotation_z(matrix4x4_t* m, f32 angle) {
-	f32 sin_theta = sin(angle);
-	f32 cos_theta = cos(angle);
+	f32 sin_theta = gf_sin(angle);
+	f32 cos_theta = gf_cos(angle);
 	m->e00 = cos_theta;
 	m->e01 = sin_theta;
 	m->e10 = -sin_theta;
@@ -683,7 +683,7 @@ static inline void matrix4x4_projection(matrix4x4_t* m, f32 near,
 	f32 far, f32 fov, f32 width, f32 height)
 {
 	f32 aspect = (f32) height / (f32) width;
-	f32 fov_rad = 1.0f / tan(fov * 0.5f);
+	f32 fov_rad = 1.0f / gf_tan(fov * 0.5f);
 
 	m->e00 = aspect * -fov_rad;
 	m->e11 = fov_rad;

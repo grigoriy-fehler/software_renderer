@@ -6,8 +6,8 @@
 #include <string.h>
 
 #include "lookup_tables.c"
-#include "maths.h"
-#include "renderer.h"
+#include "math/mathlib.h"
+#include "renderer/renderlib.h"
 
 // D E F I N E S ///////////////////////////////////////////////////////////////
 
@@ -33,14 +33,13 @@ typedef struct platform_state_t {
 // G L O B A L   V A R I A B L E S /////////////////////////////////////////////
 
 static color_rgba_t color_black = color_rgba(0.086f, 0.086f, 0.086f, 1.0f);
-static color_rgba_t color_white = color_rgba(0.941f, 0.941f, 0.941f, 1.0f);
 static color_rgba_t color_red = color_rgba(0.819f, 0.309f, 0.172f, 1.0f);
 
 static platform_state_t ps = { 0 };
 static renderer_t renderer = { 0 };
-static render_entity_t entities[RENDER_ENTITY_COUNT] = { 0 };
+static render_entity3d_t entities[RENDER_ENTITY_COUNT] = { 0 };
 static texture_t textures[TEXTURE_COUNT] = { 0 };
-static material_t materials[MATERIAL_COUNT] = { 0 };
+static material3d_t materials[MATERIAL_COUNT] = { 0 };
 
 static const char* obj_paths[RENDER_ENTITY_COUNT] = {
 	"assets/fortress.obj",
@@ -240,12 +239,12 @@ static inline texture_t* texture_load_from_tga(const char* filepath) {
 
 // O B J   F U N C T I O N S ///////////////////////////////////////////////////
 
-static inline render_entity_t* render_entity_load_from_obj(const char* filepath,
-	transform4d_t* transform, i32 material_index, color_rgba_t* color)
+static inline render_entity3d_t* render_entity_load_from_obj(const char* filepath,
+	transform4d_t* transform, i32 material_index)
 {
 	printf("Loading OBJ File: %s\n", filepath);
 
-	render_entity_t* entity = malloc(sizeof(render_entity_t));
+	render_entity3d_t* entity = malloc(sizeof(render_entity3d_t));
 	darray(point4d_t) vertices = darray_init(vertices, 4);
 	darray(point2d_t) texcoords = darray_init(texcoords, 4);
 	darray(index3d_t) indices = darray_init(indices, 2);
@@ -290,7 +289,6 @@ static inline render_entity_t* render_entity_load_from_obj(const char* filepath,
 				c = fgetc(file);
 			}
 			face3d_t face = { 0 };
-			face.color = color;
 			face.index_count = darray_size(indices);
 			int index_array_size = sizeof *indices * face.index_count;
 			face.indices = malloc(index_array_size);
@@ -335,7 +333,7 @@ static inline render_entity_t* render_entity_load_from_obj(const char* filepath,
 	return entity;
 } // render_entity_load_from_obj
 
-static inline void render_entity_free(render_entity_t* entity) {
+static inline void render_entity_free(render_entity3d_t* entity) {
 	free(entity->vertices);
 	free(entity->texcoords);
 	for (u32 i = 0; i < entity->face_count; i++) {
@@ -392,7 +390,7 @@ static inline void renderer_software_init() {
 
 	renderer.camera.position = point4d(0.0f, 38.2f, -56.2f);
 	renderer.camera.direction = vector4d(25.0f, 0.0f, 0.0f);
-	renderer.camera.fov = 90.0f;
+	renderer.camera.fov = 80.0f;
 	renderer.camera.z_near = 0.5f;
 	renderer.camera.z_far = 2000.0f;
 
@@ -404,7 +402,7 @@ static inline void renderer_software_init() {
 
 	for (int i = 0; i < RENDER_ENTITY_COUNT; i++) {
 		entities[i] = *render_entity_load_from_obj(obj_paths[i],
-			&transform, i, &color_white);
+			&transform, i);
 	}
 	renderer.entities = entities;
 
@@ -442,7 +440,7 @@ static inline void renderer_software_shut() {
 
 static inline void renderer_software_loop(double dt) {
 	for (int32_t i = 0; i < RENDER_ENTITY_COUNT; i++) {
-		render_entity_t* entity = &renderer.entities[i];
+		render_entity3d_t* entity = &renderer.entities[i];
 
 		float rot_speed = 1.0f;
 		entity->transform.rotation.y -= rot_speed * dt;

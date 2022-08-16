@@ -9,9 +9,9 @@
 
 // D E F I N E S ///////////////////////////////////////////////////////////////
 
-#define line3d(start, end, color) (line3d_t) { \
+#define line3d(start, end) (line3d_t) { \
 	(vertex3d_t) (start), \
-	(vertex3d_t) (end), \
+	(vertex3d_t) (end) \
 }
 
 // S T R U C T S ///////////////////////////////////////////////////////////////

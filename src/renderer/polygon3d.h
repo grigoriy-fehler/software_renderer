@@ -25,9 +25,21 @@ static inline void polygon3d_transform(polygon3d_t* out, polygon3d_t* in,
 	matrix4x4_t* matrix)
 {
 	for (u32 i = 0; i < in->vertex_count; i++) {
-		vertex3d_transform(&out->vertices[i], &in->vertices[i], matrix);
+		vertex3d_transform(
+			&out->vertices[i],
+			&in->vertices[i],
+			matrix
+		);
 	}
 } // polygon3d_transform
+
+static inline void polygon3d_translate(polygon3d_t* out, polygon3d_t* in,
+	vector4d_t* trans)
+{
+	for (u32 i = 0; i < in->vertex_count; i++) {
+		vertex3d_translate(&out->vertices[i], &in->vertices[i], trans);
+	}
+} // polygon3d_translate
 
 static inline void polygon3d_project_to_screen(polygon3d_t* out,
 	polygon3d_t* in, i32 width, i32 height)
@@ -40,6 +52,8 @@ static inline void polygon3d_project_to_screen(polygon3d_t* out,
 			height
 		);
 		out->vertices[i].texcoord = in->vertices[i].texcoord;
+		out->vertices[i].normal = in->vertices[i].normal;
+		out->vertices[i].color = in->vertices[i].color;
 	}
 } // polygon3d_project_to_screen
 

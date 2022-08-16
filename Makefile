@@ -1,6 +1,6 @@
 CC = gcc
 COMPILER_FLAGS = -std=c99 -Wall -Wextra -O3
-LINKER_FLAGS = `sdl2-config --cflags --libs`
+LINKER_FLAGS = -lm `sdl2-config --cflags --libs`
 
 all: demo
 

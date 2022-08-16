@@ -150,4 +150,10 @@ static inline void vector3d_lerp(vector3d_t* out, vector3d_t* a, vector3d_t* b,
 	out->z = lerp(a->z, b->z, t);
 } // vector3d_lerp
 
+static inline void vector3d_swap(vector3d_t* a, vector3d_t* b) {
+	swapf(&a->x, &b->x);
+	swapf(&a->y, &b->y);
+	swapf(&a->z, &b->z);
+} // vector3d_swap
+
 #endif // VECTOR3D_H

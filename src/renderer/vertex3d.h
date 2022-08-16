@@ -7,9 +7,10 @@
 
 // D E F I N E S ///////////////////////////////////////////////////////////////
 
-#define vertex3d(position, texcoord, color) (vertex3d_t) { \
+#define vertex3d(position, texcoord, normal, color) (vertex3d_t) { \
 	(point4d_t) (position), \
 	(point2d_t) (texcoord), \
+	(vector4d_t) (normal), \
 	(color_rgba_t) (color) \
 }
 
@@ -18,6 +19,7 @@
 typedef struct vertex3d_t {
 	point4d_t position;
 	point2d_t texcoord;
+	vector4d_t normal;
 	color_rgba_t color;
 } vertex3d_t;
 
@@ -28,7 +30,26 @@ static inline void vertex3d_transform(vertex3d_t* out, vertex3d_t* in,
 {
 	vector4d_multiply_matrix4x4(&out->position, &in->position, matrix);
 	out->texcoord = in->texcoord;
+	vector4d_multiply_matrix4x4(
+		&out->normal,
+		&in->normal,
+		matrix
+	);
+	vector3d_normalize(&out->normal.xyz, &out->normal.xyz);
+	out->color = in->color;
 } // vertex3d_transform
+
+static inline void vertex3d_translate(vertex3d_t* out, vertex3d_t* in,
+	vector4d_t* trans)
+{
+	vector4d_add(&out->position, &in->position, trans);
+	out->texcoord = in->texcoord;
+	out->normal.x = in->normal.x + trans->x;
+	out->normal.y = in->normal.y + trans->y;
+	out->normal.z = in->normal.z + trans->z;
+	vector3d_normalize(&out->normal.xyz, &out->normal.xyz);
+	out->color = in->color;
+} // vertex3d_translate
 
 static inline void vertex3d_project_to_screen(point4d_t* out, point4d_t* v,
 	i32 width, i32 height)

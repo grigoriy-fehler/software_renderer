@@ -141,6 +141,13 @@ static inline void vector4d_lerp(vector4d_t* out, vector4d_t* a, vector4d_t* b,
 	out->w = lerp(a->w, b->w, t);
 } // vector4d_lerp
 
+static inline void vector4d_swap(vector4d_t* a, vector4d_t* b) {
+	swapf(&a->x, &b->x);
+	swapf(&a->y, &b->y);
+	swapf(&a->z, &b->z);
+	swapf(&a->w, &b->w);
+} // vector4d_swap
+
 static inline void vector4d_clamp(vector4d_t* out, vector4d_t* v, f32 min,
 	f32 max)
 {

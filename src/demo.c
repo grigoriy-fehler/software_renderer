@@ -8,12 +8,15 @@
 #include "lookup_tables.c"
 #include "math/mathlib.h"
 #include "renderer/renderlib.h"
+#include "time.h"
 
 // D E F I N E S ///////////////////////////////////////////////////////////////
 
 #define WINDOW_NAME "Software Renderer"
-#define WINDOW_WIDTH 960
-#define WINDOW_HEIGHT 540
+// #define WINDOW_WIDTH 960
+// #define WINDOW_HEIGHT 540
+#define WINDOW_WIDTH 640
+#define WINDOW_HEIGHT 360
 
 #define RENDER_ENTITY_COUNT 5
 #define TEXTURE_COUNT 5
@@ -247,6 +250,7 @@ static inline render_entity3d_t* render_entity_load_from_obj(const char* filepat
 	render_entity3d_t* entity = malloc(sizeof(render_entity3d_t));
 	darray(point4d_t) vertices = darray_init(vertices, 4);
 	darray(point2d_t) texcoords = darray_init(texcoords, 4);
+	darray(vector4d_t) normals = darray_init(normals, 4);
 	darray(index3d_t) indices = darray_init(indices, 2);
 	darray(face3d_t) faces = darray_init(faces, 2);
 
@@ -260,6 +264,7 @@ static inline render_entity3d_t* render_entity_load_from_obj(const char* filepat
 	while (!feof(file)) {
 		point4d_t v = point4d(0.0f, 0.0f, 0.0f);
 		point2d_t t = point2d(0.0f, 0.0f);
+		vector4d_t n = vector4d(0.0f, 0.0f, 0.0f);
 
 		if (c == 'v') {
 			c = fgetc(file);
@@ -273,18 +278,24 @@ static inline render_entity3d_t* render_entity_load_from_obj(const char* filepat
 				if (num != 2)
 					fprintf(stderr, "Error loading file!\n");
 				darray_push(texcoords, t);
+			} else if (c == 'n') { // Normal
+				i32 num = fscanf(file, "%f %f %f\n", &n.x, &n.y,&n.z);
+				if (num != 3)
+					fprintf(stderr, "Error loading file!\n");
+				darray_push(normals, n);
 			}
 		} else if (c == 'f' && (c = fgetc(file)) == ' ') {
 			darray_clear(indices);
 			while (c != '\n') {
 				index3d_t index = { 0 };
-				i32 num = fscanf(file, "%d/%d", &index.position, &index.texcoord);
-				if (num != 2)
+				i32 num = fscanf(file, "%d/%d/%d", &index.position, &index.texcoord, &index.normal);
+				if (num != 3)
 					fprintf(stderr, "Error loading file!\n");
 				// NOTE: In OBJ indices start with 1;
 				//       In renderer indices start with 0
 				index.position--;
 				index.texcoord--;
+				index.normal--;
 				darray_push(indices, index);
 				c = fgetc(file);
 			}
@@ -319,6 +330,13 @@ static inline render_entity3d_t* render_entity_load_from_obj(const char* filepat
 	memcpy(entity->texcoords, texcoords, texcoord_array_size);
 	darray_free(texcoords);
 
+	printf("\tNormal Count: %d\n", darray_size(normals));
+	entity->normal_count = darray_size(normals);
+	int normal_array_size = sizeof *entity->normals * entity->normal_count;
+	entity->normals = malloc(normal_array_size);
+	memcpy(entity->normals, normals, normal_array_size);
+	darray_free(normals);
+
 	printf("\tFace Count: %d\n", darray_size(faces));
 	entity->face_count = darray_size(faces);
 	int face_array_size = sizeof *entity->faces * entity->face_count;
@@ -336,6 +354,7 @@ static inline render_entity3d_t* render_entity_load_from_obj(const char* filepat
 static inline void render_entity_free(render_entity3d_t* entity) {
 	free(entity->vertices);
 	free(entity->texcoords);
+	free(entity->normals);
 	for (u32 i = 0; i < entity->face_count; i++) {
 		free(entity->faces[i].indices);
 	}
@@ -390,14 +409,14 @@ static inline void renderer_software_init() {
 
 	renderer.camera.position = point4d(0.0f, 38.2f, -56.2f);
 	renderer.camera.direction = vector4d(25.0f, 0.0f, 0.0f);
-	renderer.camera.fov = 80.0f;
+	renderer.camera.fov = 90.0f;
 	renderer.camera.z_near = 0.5f;
 	renderer.camera.z_far = 2000.0f;
 
 	transform4d_t transform = transform4d(
 		point4d(0.0f, 0.0f, 0.0f),
 		vector4d(0.0f, 0.0f, 0.0f),
-		vector4d(1.0f, 1.0f, 1.0f)
+		vector4d(2.0f, 2.0f, 2.0f)
 	);
 
 	for (int i = 0; i < RENDER_ENTITY_COUNT; i++) {
@@ -442,7 +461,7 @@ static inline void renderer_software_loop(double dt) {
 	for (int32_t i = 0; i < RENDER_ENTITY_COUNT; i++) {
 		render_entity3d_t* entity = &renderer.entities[i];
 
-		float rot_speed = 1.0f;
+		float rot_speed = 32.0f;
 		entity->transform.rotation.y -= rot_speed * dt;
 	}
 	renderer_loop(&renderer);

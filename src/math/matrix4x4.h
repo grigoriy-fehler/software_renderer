@@ -51,9 +51,9 @@ static inline void matrix4x4_multiply(matrix4x4_t* out,
 
 // Note: Expects identity matrix for m
 static inline void matrix4x4_translation(matrix4x4_t* m, f32 x, f32 y, f32 z) {
-	m->e30 = x;
-	m->e31 = y;
-	m->e32 = z;
+	m->e03 = x;
+	m->e13 = y;
+	m->e23 = z;
 } // matrix4x4_translation
 
 // Note: Expects identity matrix for m
@@ -92,6 +92,15 @@ static inline void matrix4x4_rotation_z(matrix4x4_t* m, f32 angle) {
 	m->e10 = -sin_theta;
 	m->e11 = cos_theta;
 } // matrix4x4_rotation_z
+
+static inline void matrix4x4_transpose(matrix4x4_t* out, matrix4x4_t* in) {
+	*out = matrix4x4(
+		in->e00, in->e10, in->e20, in->e30,
+		in->e01, in->e11, in->e21, in->e31,
+		in->e02, in->e12, in->e22, in->e32,
+		in->e03, in->e13, in->e23, in->e33
+	);
+} // matrix4x4_transpose
 
 static inline void matrix4x4_projection(matrix4x4_t* m, f32 near,
 	f32 far, f32 fov, f32 width, f32 height)

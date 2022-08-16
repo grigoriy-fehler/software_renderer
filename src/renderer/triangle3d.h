@@ -10,12 +10,11 @@
 
 // D E F I N E S ///////////////////////////////////////////////////////////////
 
-#define triangle3d(p1, p2, p3, texture, color) (triangle3d_t) { \
+#define triangle3d(p1, p2, p3, texture) (triangle3d_t) { \
 	(vertex3d_t) (p1), \
 	(vertex3d_t) (p2), \
 	(vertex3d_t) (p3), \
 	(texture_t *) (texture), \
-	(color_rgba_t *) (color) \
 }
 
 // S T R U C T S ///////////////////////////////////////////////////////////////
@@ -23,15 +22,14 @@
 typedef struct triangle3d_t {
 	vertex3d_t p1, p2, p3;
 	texture_t* texture;
-	color_rgba_t* color;
 } triangle3d_t;
 
 // F U N C T I O N S ///////////////////////////////////////////////////////////
 
 static inline void triangle_stroke(framebuffer_t* fb, triangle3d_t* triangle) {
-	line3d_t l1 = line3d(triangle->p1, triangle->p2, triangle->color);
-	line3d_t l2 = line3d(triangle->p2, triangle->p3, triangle->color);
-	line3d_t l3 = line3d(triangle->p3, triangle->p1, triangle->color);
+	line3d_t l1 = line3d(triangle->p1, triangle->p2);
+	line3d_t l2 = line3d(triangle->p2, triangle->p3);
+	line3d_t l3 = line3d(triangle->p3, triangle->p1);
 
 	line_draw(fb, &l1);
 	line_draw(fb, &l2);
@@ -55,7 +53,9 @@ static inline void triangle_fill(framebuffer_t* fb, triangle3d_t* triangle) {
 	f32 tc2v = triangle->p2.texcoord.v;
 	f32 tc3u = triangle->p3.texcoord.u;
 	f32 tc3v = triangle->p3.texcoord.v;
-	color_rgba_t color = *triangle->color;
+	color_rgba_t color1 = triangle->p1.color;
+	color_rgba_t color2 = triangle->p2.color;
+	color_rgba_t color3 = triangle->p3.color;
 
 	if (p1y > p2y) {
 		swapi(&p1x, &p2x);
@@ -63,6 +63,7 @@ static inline void triangle_fill(framebuffer_t* fb, triangle3d_t* triangle) {
 		swapf(&p1z, &p2z);
 		swapf(&tc1u, &tc2u);
 		swapf(&tc1v, &tc2v);
+		vector4d_swap(&color1.rgba, &color2.rgba);
 	}
 	if (p1y > p3y) {
 		swapi(&p1x, &p3x);
@@ -70,6 +71,7 @@ static inline void triangle_fill(framebuffer_t* fb, triangle3d_t* triangle) {
 		swapf(&p1z, &p3z);
 		swapf(&tc1u, &tc3u);
 		swapf(&tc1v, &tc3v);
+		vector4d_swap(&color1.rgba, &color3.rgba);
 	}
 	if (p2y > p3y) {
 		swapi(&p2x, &p3x);
@@ -77,6 +79,7 @@ static inline void triangle_fill(framebuffer_t* fb, triangle3d_t* triangle) {
 		swapf(&p2z, &p3z);
 		swapf(&tc2u, &tc3u);
 		swapf(&tc2v, &tc3v);
+		vector4d_swap(&color2.rgba, &color3.rgba);
 	}
 
 	for (f32 y = p1y; y < p3y; y++) {
@@ -84,18 +87,21 @@ static inline void triangle_fill(framebuffer_t* fb, triangle3d_t* triangle) {
 		f32 zl;
 		f32 ul;
 		f32 vl;
+		color_rgba_t cl = color_rgba(0.0f, 0.0f, 0.0f, 1.0f);
 		if (y < p2y) {
 			f32 y_norm = (f32) (y - p1y) / (p2y - p1y);
 			xl = lerp(p1x, p2x, y_norm);
 			zl = lerp(p1z, p2z, y_norm);
 			ul = lerp(tc1u * p1z, tc2u * p2z, y_norm);
 			vl = lerp(tc1v * p1z, tc2v * p2z, y_norm);
+			vector3d_lerp(&cl.rgb, &color1.rgb, &color2.rgb, y_norm);
 		} else {
 			f32 y_norm = (f32) (y - p2y) / (p3y - p2y);
 			xl = lerp(p2x, p3x, y_norm);
 			zl = lerp(p2z, p3z, y_norm);
 			ul = lerp(tc2u * p2z, tc3u * p3z, y_norm);
 			vl = lerp(tc2v * p2z, tc3v * p3z, y_norm);
+			vector3d_lerp(&cl.rgb, &color2.rgb, &color3.rgb, y_norm);
 		}
 
 		f32 y_norm = (f32) (y - p1y) / (p3y - p1y);
@@ -103,12 +109,15 @@ static inline void triangle_fill(framebuffer_t* fb, triangle3d_t* triangle) {
 		f32 zr = lerp(p1z, p3z, y_norm);
 		f32 ur = lerp(tc1u * p1z, tc3u * p3z, y_norm);
 		f32 vr = lerp(tc1v * p1z, tc3v * p3z, y_norm);
+		color_rgba_t cr = color_rgba(0.0f, 0.0f, 0.0f, 1.0f);
+		vector3d_lerp(&cr.rgb, &color1.rgb, &color3.rgb, y_norm);
 
 		if (xl > xr) {
 			swapi(&xl, &xr);
 			swapf(&zl, &zr);
 			swapf(&ul, &ur);
 			swapf(&vl, &vr);
+			vector4d_swap(&cl.rgba, &cr.rgba);
 		}
 
 		for (i32 x = xl; x < xr; x++) {
@@ -119,6 +128,8 @@ static inline void triangle_fill(framebuffer_t* fb, triangle3d_t* triangle) {
 
 			i32 u = lerp(ul * z_inv, ur * z_inv, x_norm) * tex->width;
 			i32 v = lerp(vl * z_inv, vr * z_inv, x_norm) * tex->height;
+			color_rgba_t color = color_rgba(0.0f, 0.0f, 0.0f, 1.0f);
+			vector3d_lerp(&color.rgb, &cl.rgb, &cr.rgb, x_norm);
 
 			i32 index = (v * tex->width + u);
 			index = clamp(index, 0, tex->width * tex->height - 1);

@@ -25,6 +25,22 @@ typedef struct vertex3d_t {
 
 // F U N C T I O N S ///////////////////////////////////////////////////////////
 
+static inline void vertex3d_swap(vertex3d_t* a, vertex3d_t* b) {
+	vector4d_swap(&a->position, &b->position);
+	vector2d_swap(&a->texcoord, &b->texcoord);
+	vector4d_swap(&a->normal, &b->normal);
+	vector4d_swap(&a->color.rgba, &b->color.rgba);
+} // vertex3d_swap
+
+static inline void vertex3d_lerp(vertex3d_t* out, vertex3d_t* a, vertex3d_t* b,
+	f32 t)
+{
+	vector4d_lerp(&out->position, &a->position, &b->position, t);
+	vector2d_lerp(&out->texcoord, &a->texcoord, &b->texcoord, t);
+	vector4d_lerp(&out->normal, &a->normal, &b->normal, t);
+	vector4d_lerp(&out->color.rgba, &a->color.rgba, &b->color.rgba, t);
+} // vertex3d_lerp
+
 static inline void vertex3d_transform(vertex3d_t* out, vertex3d_t* in,
 	matrix4x4_t* matrix)
 {

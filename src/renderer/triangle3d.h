@@ -26,121 +26,98 @@ typedef struct triangle3d_t {
 
 // F U N C T I O N S ///////////////////////////////////////////////////////////
 
-static inline void triangle_stroke(framebuffer_t* fb, triangle3d_t* triangle) {
+static inline void triangle3d_stroke(framebuffer_t* fb, triangle3d_t* triangle)
+{
 	line3d_t l1 = line3d(triangle->p1, triangle->p2);
 	line3d_t l2 = line3d(triangle->p2, triangle->p3);
 	line3d_t l3 = line3d(triangle->p3, triangle->p1);
 
-	line_draw(fb, &l1);
-	line_draw(fb, &l2);
-	line_draw(fb, &l3);
-} // triangle_stroke
+	line3d_stroke(fb, &l1);
+	line3d_stroke(fb, &l2);
+	line3d_stroke(fb, &l3);
+} // triangle3d_stroke
 
-static inline void triangle_fill(framebuffer_t* fb, triangle3d_t* triangle) {
+static inline void triangle3d_fill(framebuffer_t* fb,
+	triangle3d_t* triangle)
+{
 	texture_t* tex = triangle->texture;
-	i32 p1x = triangle->p1.position.x;
-	i32 p1y = triangle->p1.position.y;
-	f32 p1z = triangle->p1.position.z;
-	i32 p2x = triangle->p2.position.x;
-	i32 p2y = triangle->p2.position.y;
-	f32 p2z = triangle->p2.position.z;
-	i32 p3x = triangle->p3.position.x;
-	i32 p3y = triangle->p3.position.y;
-	f32 p3z = triangle->p3.position.z;
-	f32 tc1u = triangle->p1.texcoord.u;
-	f32 tc1v = triangle->p1.texcoord.v;
-	f32 tc2u = triangle->p2.texcoord.u;
-	f32 tc2v = triangle->p2.texcoord.v;
-	f32 tc3u = triangle->p3.texcoord.u;
-	f32 tc3v = triangle->p3.texcoord.v;
-	color_rgba_t color1 = triangle->p1.color;
-	color_rgba_t color2 = triangle->p2.color;
-	color_rgba_t color3 = triangle->p3.color;
+	vertex3d_t* v1 = &triangle->p1;
+	vertex3d_t* v2 = &triangle->p2;
+	vertex3d_t* v3 = &triangle->p3;
 
-	if (p1y > p2y) {
-		swapi(&p1x, &p2x);
-		swapi(&p1y, &p2y);
-		swapf(&p1z, &p2z);
-		swapf(&tc1u, &tc2u);
-		swapf(&tc1v, &tc2v);
-		vector4d_swap(&color1.rgba, &color2.rgba);
-	}
-	if (p1y > p3y) {
-		swapi(&p1x, &p3x);
-		swapi(&p1y, &p3y);
-		swapf(&p1z, &p3z);
-		swapf(&tc1u, &tc3u);
-		swapf(&tc1v, &tc3v);
-		vector4d_swap(&color1.rgba, &color3.rgba);
-	}
-	if (p2y > p3y) {
-		swapi(&p2x, &p3x);
-		swapi(&p2y, &p3y);
-		swapf(&p2z, &p3z);
-		swapf(&tc2u, &tc3u);
-		swapf(&tc2v, &tc3v);
-		vector4d_swap(&color2.rgba, &color3.rgba);
-	}
+	if (v1->position.y > v2->position.y)
+		vertex3d_swap(v1, v2);
+	if (v1->position.y > v3->position.y)
+		vertex3d_swap(v1, v3);
+	if (v2->position.y > v3->position.y)
+		vertex3d_swap(v2, v3);
 
+	vector2d_multiply_float(&v1->texcoord, &v1->texcoord, v1->position.z);
+	vector2d_multiply_float(&v2->texcoord, &v2->texcoord, v2->position.z);
+	vector2d_multiply_float(&v3->texcoord, &v3->texcoord, v3->position.z);
+
+	vector4d_multiply_float(&v1->normal, &v1->normal, v1->position.z);
+	vector4d_multiply_float(&v2->normal, &v2->normal, v2->position.z);
+	vector4d_multiply_float(&v3->normal, &v3->normal, v3->position.z);
+
+	vector3d_multiply_float(&v1->color.rgb, &v1->color.rgb, v1->position.z);
+	vector3d_multiply_float(&v2->color.rgb, &v2->color.rgb, v2->position.z);
+	vector3d_multiply_float(&v3->color.rgb, &v3->color.rgb, v3->position.z);
+
+	vertex3d_t v, vl, vr;
+	i32 p1y = floor(v1->position.y);
+	i32 p2y = floor(v2->position.y);
+	i32 p3y = floor(v3->position.y);
 	for (f32 y = p1y; y < p3y; y++) {
-		i32 xl;
-		f32 zl;
-		f32 ul;
-		f32 vl;
-		color_rgba_t cl = color_rgba(0.0f, 0.0f, 0.0f, 1.0f);
 		if (y < p2y) {
-			f32 y_norm = (f32) (y - p1y) / (p2y - p1y);
-			xl = lerp(p1x, p2x, y_norm);
-			zl = lerp(p1z, p2z, y_norm);
-			ul = lerp(tc1u * p1z, tc2u * p2z, y_norm);
-			vl = lerp(tc1v * p1z, tc2v * p2z, y_norm);
-			vector3d_lerp(&cl.rgb, &color1.rgb, &color2.rgb, y_norm);
+			f32 dl = (f32) (y - p1y) / (p2y - p1y);
+			vertex3d_lerp(&vl, v1, v2, dl);
 		} else {
-			f32 y_norm = (f32) (y - p2y) / (p3y - p2y);
-			xl = lerp(p2x, p3x, y_norm);
-			zl = lerp(p2z, p3z, y_norm);
-			ul = lerp(tc2u * p2z, tc3u * p3z, y_norm);
-			vl = lerp(tc2v * p2z, tc3v * p3z, y_norm);
-			vector3d_lerp(&cl.rgb, &color2.rgb, &color3.rgb, y_norm);
+			f32 dl = (f32) (y - p2y) / (p3y - p2y);
+			vertex3d_lerp(&vl, v2, v3, dl);
 		}
 
-		f32 y_norm = (f32) (y - p1y) / (p3y - p1y);
-		i32 xr = lerp(p1x, p3x, y_norm);
-		f32 zr = lerp(p1z, p3z, y_norm);
-		f32 ur = lerp(tc1u * p1z, tc3u * p3z, y_norm);
-		f32 vr = lerp(tc1v * p1z, tc3v * p3z, y_norm);
-		color_rgba_t cr = color_rgba(0.0f, 0.0f, 0.0f, 1.0f);
-		vector3d_lerp(&cr.rgb, &color1.rgb, &color3.rgb, y_norm);
+		f32 dr = (f32) (y - p1y) / (p3y - p1y);
+		vertex3d_lerp(&vr, v1, v3, dr);
 
-		if (xl > xr) {
-			swapi(&xl, &xr);
-			swapf(&zl, &zr);
-			swapf(&ul, &ur);
-			swapf(&vl, &vr);
-			vector4d_swap(&cl.rgba, &cr.rgba);
-		}
+		if (vl.position.x > vr.position.x)
+			vertex3d_swap(&vl, &vr);
 
+		i32 xl = floor(vl.position.x);
+		i32 xr = floor(vr.position.x);
 		for (i32 x = xl; x < xr; x++) {
 			f32 x_norm = (f32) (x - xl) / (xr - xl);
-			f32 z = lerp(zl, zr, x_norm);
+			f32 z = lerp(vl.position.z, vr.position.z, x_norm);
 			f32 z_inv = 1.0f / z;
 			if (get_depth(fb, x, y) < z_inv) continue;
 
-			i32 u = lerp(ul * z_inv, ur * z_inv, x_norm) * tex->width;
-			i32 v = lerp(vl * z_inv, vr * z_inv, x_norm) * tex->height;
-			color_rgba_t color = color_rgba(0.0f, 0.0f, 0.0f, 1.0f);
-			vector3d_lerp(&color.rgb, &cl.rgb, &cr.rgb, x_norm);
+			vertex3d_lerp(&v, &vl, &vr, x_norm);
 
-			i32 index = (v * tex->width + u);
+			vector2d_multiply_float(
+				&v.texcoord,
+				&v.texcoord,
+				z_inv
+			);
+			vector4d_multiply_float(&v.normal, &v.normal, z_inv);
+			vector3d_multiply_float(
+				&v.color.rgb,
+				&v.color.rgb,
+				z_inv
+			);
+
+			i32 tu = v.texcoord.u * tex->width;
+			i32 tv = v.texcoord.v * tex->height;
+
+			i32 index = (tv * tex->width + tu);
 			index = clamp(index, 0, tex->width * tex->height - 1);
 			color_rgba_t c = tex->data[index];
-			vector3d_multiply(&c.rgb, &c.rgb, &color.rgb);
+			vector3d_multiply(&c.rgb, &c.rgb, &v.color.rgb);
 			if (c.a < 0.1f) continue;
 			set_depth(fb, x, y, z_inv);
 			set_pixel(fb, x, y, &c);
 		}
 	}
-} // triangle_fill
+} // triangle3d_fill
 
 static inline i32 triangle3d_clip(vertex3d_t* out, vertex3d_t* in, plane3d_t* p,
 	i32 in_count)
@@ -167,24 +144,9 @@ static inline i32 triangle3d_clip(vertex3d_t* out, vertex3d_t* in, plane3d_t* p,
 		i32 next_inside = (next_dot >= p->distance);
 
 		if (current_inside != next_inside) {
-			f32 scale = (p->distance - current_dot) / 
+			f32 t = (p->distance - current_dot) / 
 				(next_dot - current_dot);
-			for (i32 j = 0; j < 3; j++) {
-				vector4d_lerp(
-					&out_vertex->position,
-					&in_vertex->position,
-					&in[next_vert].position,
-					scale
-				);
-			}
-			for (i32 j = 0; j < 2; j++) {
-				vector2d_lerp(
-					&out_vertex->texcoord,
-					&in_vertex->texcoord,
-					&in[next_vert].texcoord,
-					scale
-				);
-			}
+			vertex3d_lerp(out_vertex, in_vertex, &in[next_vert], t);
 			out_vertex++;
 			vertex_count++;
 		}

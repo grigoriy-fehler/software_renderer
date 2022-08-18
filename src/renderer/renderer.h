@@ -236,11 +236,11 @@ static inline void render_entity_draw(renderer_t* renderer,
 				&renderer->textures[texture_index]
 			);
 
-			triangle_fill(fb, &triangle);
+			triangle3d_fill(fb, &triangle);
 			i32 wireframe = renderer->attributes &
 				RENDERER_ATTRIBUTE_WIREFRAME_BIT;
 			if (wireframe) {
-				triangle_stroke(fb, &triangle);
+				triangle3d_stroke(fb, &triangle);
 			}
 		}
 	}

@@ -22,7 +22,7 @@ typedef struct line3d_t {
 
 // F U N C T I O N S ///////////////////////////////////////////////////////////
 
-static inline void line_draw(framebuffer_t* fb, line3d_t* line) {
+static inline void line3d_stroke(framebuffer_t* fb, line3d_t* line) {
 	i32 x_start = line->start.position.x;
 	i32 y_start = line->start.position.y;
 	i32 x_end = line->end.position.x;
@@ -61,6 +61,6 @@ static inline void line_draw(framebuffer_t* fb, line3d_t* line) {
 			}
 		}
 	}
-} // line_draw
+} // line3d_stroke
 
 #endif // LINE3D_H

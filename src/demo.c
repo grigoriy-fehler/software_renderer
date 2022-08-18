@@ -461,7 +461,7 @@ static inline void renderer_software_loop(double dt) {
 	for (int32_t i = 0; i < RENDER_ENTITY_COUNT; i++) {
 		render_entity3d_t* entity = &renderer.entities[i];
 
-		float rot_speed = 32.0f;
+		float rot_speed = 2.0f;
 		entity->transform.rotation.y -= rot_speed * dt;
 	}
 	renderer_loop(&renderer);

@@ -127,4 +127,9 @@ static inline f32 lerp(f32 s, f32 e, f32 t) {
 	return s + (e - s) * t;
 } // lerp
 
+static inline i32 equal(f32 a, f32 b, f32 tolerance) {
+	if (absolute(a - b) > tolerance) return 0;
+	return 1;
+} // equal
+
 #endif // GENERAL_H
